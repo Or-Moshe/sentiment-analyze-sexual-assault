@@ -1,0 +1,5 @@
+textblob==0.15.3
+nltk==3.6.2
+pandas
+matplotlib
+googletrans==4.0.0-rc1
