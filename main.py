@@ -7,11 +7,13 @@ Original file is located at
     https://colab.research.google.com/drive/1V3Wl426ZyTW8M4kDUIqDlfmuwX2do3Q_
 """
 
-from textblob import TextBlob
 import nltk
 from nltk.tokenize import word_tokenize
 from collections import Counter
 from nltk.corpus import stopwords
+from textblob import TextBlob #Spelling Correction
+from nltk.stem import PorterStemmer #Normalization
+import re
 import string
 import numpy as np
 
@@ -20,37 +22,28 @@ import pandas as pd
 
 from googletrans import Translator
 
-# Initialize the translator
+
 translator = Translator()
+porter = PorterStemmer()
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
 
+df = pd.read_csv('data/with classification.csv').head(10)
+print('number of columns', df.size)
+print('number of rows', len(df))
 
-df = pd.read_csv('data/with classification.csv')
-print(df['transcriptConsumer'])
-
-"""***Translations***"""
-# Define a function to translate sentences
-def translate_sentence(sentence):
-    print('sentence: ', sentence)
-    if pd.notna(sentence):
-        # Split the sentence into multiple sentences based on the newline character \n
-        sentences = sentence.split("\\n")
-
-        # Translate each part separately
-        translated_sentences = [translator.translate(s, src='he', dest='en').text for s in sentences]
-        print('translated_sentences: ', translated_sentences)
-        # Join the translated sentences back together
-        translated_sentence = "\n".join(translated_sentences)
-
-        return translated_sentence
+# Define a function to translate text
+def translate_text(text):
+    print('text:', text)
+    if pd.notna(text):
+        translation = translator.translate(text, src='he', dest='en')
+        return translation.text
     else:
-        return np.nan
+        return None
 
-# Initialize the Google Translate client
-df['transcriptConsumerEnglish'] = translate_sentence(df['transcriptConsumer'][4])#df['transcriptConsumer'][0].apply(translate_sentence)
-print(df[['transcriptConsumer', 'transcriptConsumerEnglish']])
+# Apply translation to the 'transcriptConsumer' column and add the results to a new column
+df['transcriptConsumerEnglish'] = df['transcriptConsumer'].apply(translate_text)
 
 """***Tokenization***
 
@@ -92,32 +85,69 @@ print(df[['transcriptConsumer', 'transcriptConsumerEnglish']])
 36. WRB: Wh-adverb
 """
 
-tokens_english = nltk.word_tokenize(sentence_english)
-print(tokens_english)
 
-tagged_tokens_english = nltk.pos_tag(tokens_english)
-tagged_tokens_english
+def remove_special_characters(sentence):
+    return re.sub(r'[^a-zA-Z0-9\s]', '', sentence)
+
+
+def correct_spelling(text):
+    return TextBlob(text).correct()
+
+
+# Define a function to tokenize sentences, handling potential empty tokens
+def tokenize_sentence(sentence):
+    if pd.notna(sentence):
+        # Tokenize the sentence
+        tokens = word_tokenize(sentence)
+
+        # Remove empty tokens
+        tokens = [token.lower() for token in tokens if token.strip()]
+
+        print('tokens', tokens)
+        return tokens
+    else:
+        return []
+
+
+def tagged_tokens(tokens):
+    return nltk.pos_tag(tokens)
+
+
+def remove_stopwords(tokens):
+    stop_words = set(stopwords.words('english'))
+    stemmed_tokens = [porter.stem(token) for token in tokens]
+    print('stemmed_tokens ', stemmed_tokens)
+    filtered_sentences = [word for word in stemmed_tokens if word.lower() not in stop_words]
+    print('filtered_sentences ', filtered_sentences)
+    return filtered_sentences
+
+
+def remove_specialCharacters(sentence):
+    return re.sub(r'[^a-zA-Z0-9\s]', '', sentence)
+
+###################################################Text Preprocessing:
+df['transcriptConsumerEnglish'] = df['transcriptConsumerEnglish'].apply(remove_special_characters, correct_spelling)
+# Apply word tokenization to the 'transcriptConsumerEnglish' column
+df['tokens_english'] = df['transcriptConsumerEnglish'].apply(tokenize_sentence)
+
+print('tokens_english: ', df['tokens_english'])
+print('*********************************')
+
+# Remove stopwords
+df['filtered_tokens_english'] = df['tokens_english'].apply(remove_stopwords)
+
+df['tagged_tokens_english'] = df['filtered_tokens_english'].apply(tagged_tokens)
+print('filtered_tokens_english: ', df['filtered_tokens_english'])
+print('tagged_tokens_english: ', df['tagged_tokens_english'])
+
 
 # Count the appearance of each word
-word_counts = Counter(tokens_english)
+word_counts = Counter(df['filtered_tokens_english'][4])
 
 # Print the word counts
 for word, count in word_counts.items():
     print(word, ':', count)
 
-# Remove stopwords and punctuation
-stop_words = set(stopwords.words('english'))
-punctuation = set(string.punctuation)
-stop_words
-
-# Convert all words to lowercase
-words_english = [word.lower() for word in tokens_english]
-
-filtered_words = [word for word in words_english if word not in stop_words and word not in punctuation]
-print("Filtered words:", filtered_words)
-
-# Count the appearance of each word
-word_counts = Counter(filtered_words)
 
 # Plot the histogram of token frequencies
 plt.figure(figsize=(12, 6))
@@ -127,3 +157,5 @@ plt.ylabel('Frequency')
 plt.title('Token Frequency Histogram')
 plt.xticks(rotation=45)
 plt.show()
+
+df.to_csv('data/with classification.csv', index=False)
