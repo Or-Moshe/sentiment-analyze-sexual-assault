@@ -79,6 +79,7 @@ payload = {
   "random_seed": 1337
 }
 
+
 # Convert the dictionary to JSON format
 headers = {'Content-Type': 'application/json'}
 data = json.dumps(payload)
