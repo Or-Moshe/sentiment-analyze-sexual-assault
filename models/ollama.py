@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-from helpers.translate import translate
+#from helpers.translate import translate
 
 df = pd.read_csv('../data/withClassification.csv')
 
@@ -46,11 +46,48 @@ def clean_text(text):
     text = text.strip()
 
     return text
-
+'''
 columns_to_translate = ['transcriptAgent', 'transcriptConsumer', 'transcriptAll']
 for column in columns_to_translate:
     filtered_df[column] = filtered_df[column].apply(clean_text)
 
 translated_df = translate(filtered_df, columns_to_translate)
 translated_df.to_csv('../data/translated.csv', index=False)
+'''
 
+
+import requests
+import json
+
+# Define the URL of the local server where Ollama is running
+url = 'http://localhost:11434/api/chat'
+
+# Prepare the data payload as a dictionary
+payload = {
+  "model": "mistral",
+  "messages": [
+    {
+      "role": "user",
+      "content": "why does it rain?"
+    }
+  ],
+  "temperature": 0.7,
+  "top_p": 1,
+  "max_tokens": 512,
+  "stream": False,
+  "safe_prompt": False,
+  "random_seed": 1337
+}
+
+# Convert the dictionary to JSON format
+headers = {'Content-Type': 'application/json'}
+data = json.dumps(payload)
+
+# Send a POST request
+response = requests.post(url, data=data, headers=headers)
+
+# Check if the request was successful
+if response.status_code == 200:
+    print("Response from model:", response.json())
+else:
+    print("Failed to get a response from the model, status code:", response.status_code)
