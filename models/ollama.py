@@ -1,6 +1,8 @@
 import pandas as pd
 import re
-#from helpers.translate import translate
+import requests
+import json
+from helpers.translate import translate
 
 df = pd.read_csv('../data/withClassification.csv')
 
@@ -56,8 +58,7 @@ translated_df.to_csv('../data/translated.csv', index=False)
 '''
 
 
-import requests
-import json
+
 
 # Define the URL of the local server where Ollama is running
 url = 'http://localhost:11434/api/chat'
